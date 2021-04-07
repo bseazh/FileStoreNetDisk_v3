@@ -75,7 +75,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 			// 文件写入OSS存储
 			MinIOPath := "/minIO/" + fileMeta.FileSha1
 
-			if cfg.AsyncTransferEnable {
+			if !cfg.AsyncTransferEnable {
 				// 文件写入MinIO存储（文件上传）
 				//if err := minIO.FPutObject(fileMeta.FileSha1 + path.Ext(fileMeta.FileName),fileMeta.Location) ; err != nil {
 				//	log.Println( err.Error() )
@@ -83,10 +83,9 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 				//}
 
 				// 文件写入MinIO存储 ( 文件流读入 )
-				if err := minIO.PutObject( fileMeta.FileSha1 + path.Ext(fileMeta.FileName) , newFile ) ;
-					err != nil {
-						log.Println( err.Error() )
-						return
+				if err := minIO.PutObject(fileMeta.FileSha1+path.Ext(fileMeta.FileName), newFile); err != nil {
+					log.Println(err.Error())
+					return
 				}
 
 				// 文件写入MinIO存储 ( 文件流读入 + 加密 )
@@ -97,7 +96,7 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 				//}
 				log.Println(" success write in MinIO ")
 				fileMeta.Location = MinIOPath
-			}else{
+			} else {
 				// 写入异步转移任务队列
 				data := mq.TransferData{
 					FileHash:      fileMeta.FileSha1,
@@ -153,8 +152,11 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 		// 更新用户文件表记录
 		r.ParseForm()
 		username := r.Form.Get("username")
+		parentID := r.Form.Get("parentID")
 		suc := dblayer.OnUserFileUploadFinished(username, fileMeta.FileSha1,
-			fileMeta.FileName, fileMeta.FileSize)
+			fileMeta.FileName, fileMeta.FileSize, parentID)
+
+		// TODO : 文件夹 添加
 		if suc {
 			http.Redirect(w, r, "/static/view/home.html", http.StatusFound)
 		} else {
@@ -198,8 +200,19 @@ func FileQueryHandler(w http.ResponseWriter, r *http.Request) {
 
 	limitCnt, _ := strconv.Atoi(r.Form.Get("limit"))
 	username := r.Form.Get("username")
+	parentID, _ := strconv.Atoi(r.Form.Get("parentID"))
+	documentName := r.Form.Get("documentName")
 	//fileMetas, _ := meta.GetLastFileMetasDB(limitCnt)
-	userFiles, err := dblayer.QueryUserFileMetas(username, limitCnt)
+
+	var ID int
+	var err error
+	if parentID == 0 {
+		ID, err = dblayer.QueryUserID(username, parentID, documentName)
+	} else {
+		ID = parentID
+	}
+	userFiles, err := dblayer.QueryUserFileMetas(username, ID, limitCnt)
+
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -266,11 +279,6 @@ func FileMetaUpdateHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		_, err := json.Marshal(curFileMeta)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
 		w.WriteHeader(http.StatusOK)
 		//w.Write(data)
 	}
@@ -288,7 +296,7 @@ func FileDeleteHandler(w http.ResponseWriter, r *http.Request) {
 	// 删除文件元信息
 	meta.RemoveFileMeta(fileSha1)
 	// 删除表文件信息
-	meta.RemoveFileMetaDB(fileSha1,username)
+	meta.RemoveFileMetaDB(fileSha1, username)
 
 	w.WriteHeader(http.StatusOK)
 }
@@ -301,6 +309,7 @@ func TryFastUploadHandler(w http.ResponseWriter, r *http.Request) {
 	username := r.Form.Get("username")
 	filehash := r.Form.Get("filehash")
 	filename := r.Form.Get("filename")
+	parentID := r.Form.Get("parentID")
 	filesize, _ := strconv.Atoi(r.Form.Get("filesize"))
 
 	// 2. 从文件表中查询相同hash的文件记录
@@ -323,7 +332,7 @@ func TryFastUploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 4. 上传过则将文件信息写入用户文件表， 返回成功
 	suc := dblayer.OnUserFileUploadFinished(
-		username, filehash, filename, int64(filesize))
+		username, filehash, filename, int64(filesize), parentID)
 	if suc {
 		resp := util.RespMsg{
 			Code: 0,
@@ -346,15 +355,18 @@ func DownloadURLHandler(w http.ResponseWriter, r *http.Request) {
 	// 从文件表查找记录
 	row, _ := dblayer.GetFileMeta(filehash)
 
-	// TODO: 判断文件存在OSS，还是Ceph，还是在本地
+	fmt.Println("################## URL ###############")
+	// 判断文件存在OSS，还是Ceph，还是在本地
 	if strings.HasPrefix(row.FileAddr.String, "/tmp/NetDisk/") {
 		username := r.Form.Get("username")
 		token := r.Form.Get("token")
 		tmpUrl := fmt.Sprintf("http://%s/file/download?filehash=%s&username=%s&token=%s",
 			r.Host, filehash, username, token)
+		log.Println(" #### 进入了 本地下载的url ", tmpUrl)
+
 		w.Write([]byte(tmpUrl))
 	} else if strings.HasPrefix(row.FileAddr.String, "/minIO/") {
-		signedURL := minIO.DownloadURL( filehash + path.Ext(row.FileName.String) )
+		signedURL := minIO.DownloadURL(filehash + path.Ext(row.FileName.String))
 		w.Write([]byte(signedURL))
 	} else if strings.HasPrefix(row.FileAddr.String, "oss/") {
 		// oss下载url

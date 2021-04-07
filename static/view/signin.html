@@ -82,8 +82,10 @@
       },
       success: function (body, textStatus, jqXHR) {
         var resp = JSON.parse(body);
-        localStorage.setItem("token", resp.data.Token)
-        localStorage.setItem("username", resp.data.Username)
+        localStorage.setItem("token", resp.data.Token);
+        localStorage.setItem("username", resp.data.Username);
+        localStorage.setItem("parentID",resp.data.ParentID);
+        localStorage.setItem("documentName",resp.data.DocumentName);
         window.location.href = resp.data.Location;
       }
     });

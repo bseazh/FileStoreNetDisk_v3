@@ -13,8 +13,9 @@
   <!-- 最新的 Bootstrap 核心 JavaScript 文件 -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
           crossorigin="anonymous"></script>
-
+  <link rel="stylesheet" href="../css/index.css">
   <script src="/static/js/auth.js"></script>
+  <script src="/static/js/breadcrumb.js"></script>
 </head>
 
 <body style="width:100%;height:100%">
@@ -27,8 +28,8 @@
     <tbody>
     <tr style="margin-bottom: 20px;">
       <td style="width:20%;height: 100%;background: lightsteelblue;">
-        <div style="text-align: top;height:20%;margin: 10px 0 0 10px;">
-          <img style="width:80px;height:80px;" src="/static/img/avatar.jpeg"></img><br>
+        <div style="text-align: Left ;height:20%;margin: 10px 0 0 10px;">
+          <img style="width:240px;height:240px;" src="/static/img/avatar.png"></img><br>
           用户名: <p id="username" style="color: seagreen"></p>
           注册时间: <p id="regtime" style="color: seagreen"></p>
         </div>
@@ -37,20 +38,29 @@
       <td style="width: 3px;height:100%;">
         <div style="width:100%;height: 100%;background:rgb(202, 157, 248);"></div>
       </td>
-      <td style="text-align: top;">
+      <td style="text-align: Left;">
         <div>文件列表
-          <button class="btn btn-success" onclick="toUploadFile()" style="float: right;margin-right: 30px;">上传文件
-          </button>
+
+          <input type="image" title="上传文件" height=5% width=3% style="float: right;margin-right: 50px" src="/static/img/upload3.png" onclick="toUploadFile()"/>
+
+          <input type="image" title="创建文件夹" height=5% width=3% style="float: right;margin-right: 20px" src="/static/img/folder3.png" onclick="createFolder()"/>
+
+          <input type="image" title="返回上一层" height=5% width=3% style="float: right;margin-right: 25px" src="/static/img/back4.png" onclick="goUp()"/>
           <div style="width:100%;height: 1px;background:rgb(202, 157, 248);margin-top: 15px;"></div>
         </div>
+
+        <nav class="bread-nav" id="bread-nav">
+        </nav>
+
+
         <div style="height:95%;" style="width:100%;">
           <table id="filetbl" style="margin-left:3%;width:96%;">
             <thead style="height:50px;border:1px;">
             <tr style="height:50px;border:1px;">
-              <th>文件hash</th>
+              <th>图标</th>
               <th>文件名</th>
+              <th>文件hash</th>
               <th>文件大小</th>
-              <th>上传时间</th>
               <th>最近更新</th>
               <th>操作</th>
             </tr>
@@ -65,6 +75,10 @@
 </body>
 
 <script lang="javascript">
+
+  var breadNav = document.getElementById("bread-nav");
+  breadNav.innerHTML = createBreadNav();
+
   window.onload = function () {
     var username = document.getElementById('username');
     $.ajax({
@@ -77,18 +91,27 @@
           alert(textStatus);
         }
       },
-      success: function (body, textStatus, jqXHR) {
+      success: function (body, textStatus, jqXHR){
         var resp = JSON.parse(body);
         document.getElementById("username").innerHTML = resp.data.Username;
         document.getElementById("regtime").innerHTML = resp.data.SignupAt;
+
+        var parentID = localStorage.getItem("parentID") ;
+        if (parentID === '0') {
+          initStorageObj()
+          openFolder("/",0);
+        }
         updateFileList();
       }
     });
   }
 
   function updateFileList() {
+
+    var parentID = localStorage.getItem("parentID");
+    var documentName = localStorage.getItem("documentName");
     $.ajax({
-      url: "/file/query?" + queryParams(),
+      url: "/file/query?" + queryParams() + "&parentID=" + parentID + "&documentName=" + documentName,
       type: "POST",
       data: {
         limit: 10
@@ -97,6 +120,9 @@
         alert(err);
       },
       success: function (body) {
+
+        breadNav.innerHTML = createBreadNav();
+
         if (!body) {
           return;
         }
@@ -104,53 +130,181 @@
         if (!data || data.length <= 0) {
           return;
         }
-
         serverHost = "127.0.0.1:8080"
-        var downloadHtml = '<button class="btn btn-success" ' +
-                'style="height:30px;margin:5px 0;"' +
-                'onClick = "downloadFile(\'http://127.0.0.1:8080/file/' +
-                'downloadurl?filehash={0}&{1}\')">下载</button>';
-        var renameFileHtml = '<button class="btn btn-success" ' +
-                'style="height:30px;margin:5px 3px;"' +
-                'onClick = "renameFile(\'{0}\',\'{1}\',\'http://localhost:8080/file/' +
-                'update?op=0&filehash={2}&{3}\')">重命名</button>';
-        var removeFileHtml = '<button class="btn btn-success" ' +
-                'style="height:30px;margin:5px 3px;"' +
-                'onClick = "removeFile(\'{0}\',\'{1}\',\'http://localhost:8080/file/' +
-                'delete?filehash={2}&{3}\')">删除</button>';
 
+
+        var downloadHtml = '<input type="image" title="下载" height=-1% width=15% src="/static/img/upload3.png" ' +
+                'onClick = "downloadFile(\'http://127.0.0.1:8080/file/downloadurl?filehash={0}&{1}\')"/>'
+
+        // var downloadHtml = '<button class="btn btn-success" ' +
+        //         'style="height:30px;margin:5px 3px;"' +
+        //         'onClick = "downloadFile(\'http://127.0.0.1:8080/file/' +
+        //         'downloadurl?filehash={0}&{1}\')">下载</button>';
+
+
+        var renameFileHtml = '<input type="image" title="重命名" height=-1% width=15% src="/static/img/rename3.png" ' +
+                'onClick = "renameFile(\'{0}\',\'{1}\',\'http://localhost:8080/file/update?op=0&filehash={2}&{3}\')"/>'
+
+        // var renameFileHtml = '<button class="btn btn-success" ' +
+        //         'style="height:30px;margin:5px 3px;"' +
+        //         'onClick = "renameFile(\'{0}\',\'{1}\',\'http://localhost:8080/file/' +
+        //         'update?op=0&filehash={2}&{3}\')">重命名</button>';
+
+
+        var removeFileHtml = '<input type="image" title="删除" height=-1% width=15% src="/static/img/delete3.png" ' +
+                'onClick = "removeFile(\'{0}\',\'{1}\',\'http://localhost:8080/file/delete?filehash={2}&{3}\')"/>'
+
+        // var removeFileHtml = '<button class="btn btn-success" ' +
+        //         'style="height:30px;margin:5px 3px;"' +
+        //         'onClick = "removeFile(\'{0}\',\'{1}\',\'http://localhost:8080/file/' +
+        //         'delete?filehash={2}&{3}\')">删除</button>';
+
+
+
+        var image = '<img style="width: 32px ; height:24px ;" src="/static/img/folder2.ico"></img>'
         for (var i = 0; i < data.length; i++) {
           var x = document.getElementById('filetbl').insertRow();
+          var btnDownloadHtml = "";
+          var btnRemoveFileHtml = "";
+          if ( data[i].IsFile === 0 ){
+            image = '<img style="width: 32px ; height:24px ;" src="/static/img/folder2.ico"></img>'
+            downloadHtml = '<input type="image" title="打开" height=-1% width=15% src="/static/img/opened-folder2.png" ' +
+                    'onClick = "openFolder(\'{0}\',\'{1}\')"/>'
+            btnDownloadHtml = downloadHtml.format( data[i].DocumentName , parentID );
+
+            removeFileHtml = '<input type="image" title="删除文件夹" height=-1% width=15% src="/static/img/delete3.png" ' +
+                    'onClick = "removeFolder(\'{0}\',\'{1}\')"/>'
+
+            btnRemoveFileHtml = removeFileHtml.format(data[i].DocumentName,data[i].DocumentSize)
+
+          }else{
+            image = '<img style="width: 24px ; height:32px ;" src="/static/img/document2.ico"></img>';
+            downloadHtml = '<input type="image" title="下载" height=-1% width=15% src="/static/img/download2.png" ' +
+                    'onClick = "downloadFile(\'http://127.0.0.1:8080/file/downloadurl?filehash={0}&{1}\')"/>';
+            btnDownloadHtml = downloadHtml.format( data[i].FileSha1 , queryParams() )
+
+            removeFileHtml = '<input type="image" title="删除" height=-1% width=15% src="/static/img/delete3.png" ' +
+                    'onClick = "removeFile(\'{0}\',\'{1}\',\'http://localhost:8080/file/delete?filehash={2}&{3}\')"/>'
+
+            btnRemoveFileHtml = removeFileHtml.format(data[i].FileSha1, data[i].DocumentName, data[i].FileSha1,
+                    queryParams())
+          }
+
           var cell = x.insertCell();
-          cell.innerHTML = data[i].FileHash.substr(0, 10) + "...";
+          cell.innerHTML = image;
 
           cell = x.insertCell();
-          cell.innerHTML = data[i].FileName;
+          cell.innerHTML = data[i].DocumentName;
 
           cell = x.insertCell();
-          cell.innerHTML = data[i].FileSize;
+          cell.innerHTML = data[i].FileSha1.substr(0, 10) + "...";
+
+          cell = x.insertCell();
+          cell.innerHTML = data[i].DocumentSize;
 
           cell = x.insertCell();
           cell.innerHTML = data[i].UploadAt;
 
           cell = x.insertCell();
-          cell.innerHTML = data[i].LastUpdated;
 
-          cell = x.insertCell();
           cell.innerHTML =
-          downloadHtml.format(data[i].FileHash, queryParams()) +
-          renameFileHtml.format(data[i].FileHash, data[i].FileName, data[i].FileHash,
-                          queryParams())
-          +removeFileHtml.format(data[i].FileHash, data[i].FileName, data[i].FileHash,
-                          queryParams());
-
+          btnDownloadHtml +
+          renameFileHtml.format(data[i].FileSha1, data[i].DocumentName, data[i].FileSha1,
+                          queryParams()) +
+          btnRemoveFileHtml ;
         }
+
       }
     });
   }
 
+  function createFolder(){
+
+    var parentID = localStorage.getItem("parentID");
+    var newFileName = prompt("\n创建新的文件夹\n请输入新的文件名:");
+    newFileName = newFileName.trim();
+
+    if (newFileName.length <= 0) {
+      alert("文件名不能为空");
+      return;
+    }
+
+    if (newFileName.indexOf(" ") >= 0) {
+      alert("文件名不能包含空格");
+      return;
+    }
+
+    $.ajax({
+      url: "/document/createFolder?" + queryParams() + "&parentID=" + parentID + "&documentName=" + newFileName.toString() ,
+      type: "POST",
+      success: function (body) {
+        alert(str + "文件夹创建成功");
+        window.location.href = '/static/view/home.html';
+      },
+      error: function (msg) {
+        alert(" error ");
+        window.location.href = '/static/view/home.html';
+        // alert(msg);
+        // window.location.href = '/static/view/home.html';
+      }
+    });
+  }
+
+
+  function openFolder( documentName , parentID ) {
+
+    $.ajax({
+      url: "/document/openFolder?" + queryParams() + "&documentName=" + documentName + "&parentID=" + parentID ,
+      type: "POST",
+      success: function(body) {
+
+
+        if (documentName !== "/") {
+          var path = JSON.parse(localStorage.getItem("Path"));
+          path.push(documentName);
+          storageObj(path);
+        }
+
+        breadNav.innerHTML = createBreadNav();
+
+        var res = JSON.parse(body);
+        localStorage.setItem("parentID",res.data );
+
+        location.reload()
+      },
+      error: function (msg) {
+        alert(" Open : failed ");
+        // location.reload()
+      }
+    });
+  }
+
+  function goUp(){
+    $.ajax({
+      url: "/document/goUpFolder?" + queryParams()
+              + '&parentID=' + localStorage.getItem("parentID"),
+      type: "POST",
+      error: function (err) {
+        alert( "GoUpFolder Failed " + err );
+        // location.reload()
+      },
+      success: function (body) {
+        var res = JSON.parse(body);
+        localStorage.setItem("parentID",res.data );
+
+
+        var path = JSON.parse( localStorage.getItem("Path") );
+        path.pop();
+        storageObj( path );
+
+        breadNav.innerHTML = createBreadNav();
+        location.reload()
+      }
+    });
+  }
   function toUploadFile() {
-    window.location.href = '/file/upload?' + queryParams();
+    var parentID = localStorage.getItem("parentID");
+    window.location.href = '/file/upload?' + queryParams() + "&parentID=" + parentID ;
   }
 
   function downloadFile(durl) {
@@ -199,8 +353,30 @@
       });
     }
   }
-  function renameFile(filehash, filename, renameUrl) {
 
+  function removeFolder( documentName , documentSize ){
+
+    var v = confirm("\n当前文件夹名: {0}\n\n请问是否删除文件夹".format(documentName));
+    var parentID = localStorage.getItem("parentID");
+    if( v == true ){
+      $.ajax({
+        url: "/document/deleteFolder?" + queryParams() + "&documentName=" + documentName + "&documentSize=" + documentSize ,
+        type: "POST",
+        success: function (body) {
+          alert("文件删除成功");
+          window.location.href = '/static/view/home.html';
+        },
+        error: function (msg) {
+          alert(" Delete : success ");
+          window.location.href = '/static/view/home.html';
+          // alert(msg);
+          // window.location.href = '/static/view/home.html';
+        }
+      });
+    }
+  }
+
+  function renameFile(filehash, filename, renameUrl) {
 
     var newFileName = prompt("\n当前文件名: {0}\n\n请输入新的文件名: ".format(filename));
     newFileName = newFileName.trim();
@@ -259,6 +435,21 @@
     }
   }
 
+
+  // breadNav.innerHTML = createBreadNav();
+
+  function createBreadNav () {
+
+    var Path = JSON.parse( localStorage.getItem("Path") );
+    var inner = "";
+    for (var i = 0; i < Path.length - 1 ; i++ ) {
+      var x = Path[i]
+      inner += '<a class="breadcrumb-item">' + x + '</a>'
+    }
+    inner += '<span  class="breadcrumb-item active">' + Path[ Path.length - 1 ] + '</span>';
+    return inner;
+  }
 </script>
+
 
 </html>

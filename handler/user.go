@@ -43,6 +43,8 @@ func SignupHandler(w http.ResponseWriter, r *http.Request) {
 	suc := dblayer.UserSignup(username, encPasswd)
 	if suc {
 		// TODO : 用户表添加根目录
+
+		dblayer.CreateDocument(username, "/", 0, 0)
 		w.Write([]byte("SUCCESS"))
 	} else {
 		w.Write([]byte("FAILED"))
@@ -89,13 +91,17 @@ func SignInHandler(w http.ResponseWriter, r *http.Request) {
 		Code: 0,
 		Msg:  "OK",
 		Data: struct {
-			Location string
-			Username string
-			Token    string
+			Location     string
+			Username     string
+			Token        string
+			ParentID     string
+			DocumentName string
 		}{
-			Location: "http://" + r.Host + "/static/view/home.html",
-			Username: username,
-			Token:    token,
+			Location:     "http://" + r.Host + "/static/view/home.html",
+			Username:     username,
+			Token:        token,
+			ParentID:     "0",
+			DocumentName: "/",
 		},
 	}
 	w.Write(resp.JSONBytes())

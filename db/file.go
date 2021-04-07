@@ -1,8 +1,8 @@
 package db
 
 import (
-	"database/sql"
 	mydb "FileStoreNetDisk_v3/db/mysql"
+	"database/sql"
 	"fmt"
 )
 
@@ -33,43 +33,42 @@ func OnFileUploadFinished(filehash string, filename string,
 }
 
 // RenameFile : 通过 ( filehash username ) 找到文件更新其对应的文件名;
-func RenameFile(filehash , filename , username string ) bool {
+func RenameFile(filehash, filename, username string) bool {
 
 	stmt, err := mydb.DBConn().Prepare(
-		"UPDATE tbl_user_file SET file_name = ? where user_name = ? and file_sha1 = ?")
+		"UPDATE tbl_document SET document_name = ? where user_name = ? and file_sha1 = ?")
 	if err != nil {
 		fmt.Println("Failed to prepare statement, err:" + err.Error())
 		return false
 	}
 	defer stmt.Close()
 
-	_ , err = stmt.Exec(filename, username,filehash )
+	_, err = stmt.Exec(filename, username, filehash)
 	if err != nil {
 		fmt.Println(err.Error())
 		return false
 	}
-	return false
+	return true
 }
 
 // RemoveFile : 通过 ( filehash username ) 删除之间的索引 ;
-func RemoveFile(filehash   , username string ) bool {
+func RemoveFile(filehash, username string) bool {
 
 	stmt, err := mydb.DBConn().Prepare(
-		"DELETE FROM tbl_user_file WHERE user_name = ? and file_sha1 = ? ;")
+		"DELETE FROM tbl_document WHERE user_name = ? and file_sha1 = ? ;")
 	if err != nil {
 		fmt.Println("Failed to prepare statement, err:" + err.Error())
 		return false
 	}
 	defer stmt.Close()
 
-	_ , err = stmt.Exec( username,filehash )
+	_, err = stmt.Exec(username, filehash)
 	if err != nil {
 		fmt.Println(err.Error())
 		return false
 	}
-	return false
+	return true
 }
-
 
 // TableFile : 文件表结构体
 type TableFile struct {

@@ -22,6 +22,7 @@ func main() {
 	http.HandleFunc("/file/download", handler.HTTPInterceptor(handler.DownloadHandler))
 	http.HandleFunc("/file/update", handler.HTTPInterceptor(handler.FileMetaUpdateHandler))
 	http.HandleFunc("/file/delete", handler.HTTPInterceptor(handler.FileDeleteHandler))
+
 	// 秒传接口
 	http.HandleFunc("/file/fastupload", handler.HTTPInterceptor(
 		handler.TryFastUploadHandler))
@@ -42,6 +43,13 @@ func main() {
 	http.HandleFunc("/user/signup", handler.SignupHandler)
 	http.HandleFunc("/user/signin", handler.SignInHandler)
 	http.HandleFunc("/user/info", handler.HTTPInterceptor(handler.UserInfoHandler))
+
+	// 文档相关接口
+	http.HandleFunc("/document/info", handler.HTTPInterceptor(handler.GetCurPathID))
+	http.HandleFunc("/document/createFolder", handler.HTTPInterceptor(handler.CreateFolder))
+	http.HandleFunc("/document/openFolder", handler.HTTPInterceptor(handler.OpenFolder))
+	http.HandleFunc("/document/goUpFolder", handler.HTTPInterceptor(handler.GoUpFolder))
+	http.HandleFunc("/document/deleteFolder", handler.HTTPInterceptor(handler.DeleteFolder))
 
 	fmt.Printf("上传服务启动中，开始监听监听[%s]...\n", cfg.UploadServiceHost)
 	// 启动服务并监听端口

@@ -2,8 +2,7 @@ package config
 
 const (
 	// AsyncTransferEnable : 是否开启文件异步转移(默认同步)
-	AsyncTransferEnable = true
-
+	AsyncTransferEnable = false
 
 	// RabbitURL : rabbitmq服务的入口url
 	RabbitURL = "amqp://guest:guest@127.0.0.1:5672/"
@@ -19,7 +18,6 @@ const (
 	// TransOSSRoutingKey : routingkey
 	TransOSSRoutingKey = "oss"
 
-
 	// ##########	MinIO   ##########
 
 	// TransMinIOQueueName : MinIO转移队列名
@@ -28,9 +26,7 @@ const (
 	TransMinIOErrQueueName = "uploadserver.trans.MinIO.err"
 	// TransMinIORoutingKey : routingkey
 	TransMinIORoutingKey = "MinIO"
-
 )
-
 
 //#程序目录
 //cd /usr/local/sbin/
